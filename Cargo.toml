@@ -1,0 +1,26 @@
+
+[package]
+authors = ["Mathieu Suen <tryphont@pm.me>"]
+categories = [
+    "embedded",
+    "hardware-support",
+    "no-std",
+]
+description = "Exploring the stm 32l476discovery board"
+keywords = [
+    "embedded-hal",
+    "embedded-board",
+]
+license = "0BSD"
+name = "discovery32l476"
+readme = "README.md"
+repository = "https://github.com/mathk/discovery32l476"
+version = "0.0.1"
+
+[dependencies]
+stm32l4xx-hal = { path = "../stm32l4xx-hal" }
+mfxstm32l152 = { path = "../mfxstm32l152" }
+
+[dependencies.embedded-hal]
+features = ["unproven"]
+version = "0.2.2"
