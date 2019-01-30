@@ -34,5 +34,5 @@ features = ["unproven"]
 version = "0.2.2"
 
 [replace]
-"i2c-hal-tools:0.0.1" = { path = "../i2c-hal-tools" }
+"i2c-hal-tools:0.0.2" = { path = "../i2c-hal-tools" }
 "stm32l4:0.6.0" = { path = "../stm32-rs/stm32l4" }
