@@ -4,14 +4,17 @@ extern crate stm32l4xx_hal as hal;
 extern crate mfxstm32l152 as mfx;
 
 use hal::prelude::*;
-use hal::gpio::{gpioa::PA4, gpiob::{PB10, PB11}};
 use hal::serial::{Serial, Tx};
 use hal::delay::Delay;
 use hal::i2c::{I2c, Error as I2cError};
 
-use hal::gpio::{AF4, Output, PushPull, OpenDrain, Alternate};
+use hal::gpio::{gpioa, gpioa::{PA0, PA4}, gpiob::{PB10, PB11}};
+use hal::gpio::{Input, Output, Floating, PushPull, OpenDrain};
+use hal::gpio::{AF4, Alternate};
+
 use hal::stm32::USART2;
 use hal::stm32::I2C2;
+
 use mfx::{MFX, DelayUnit, NbShunt, Ampere};
 
 type MfxI2c = I2c<I2C2, (PB10<Alternate<AF4, Output<OpenDrain>>>, PB11<Alternate<AF4, Output<OpenDrain>>>)>;
@@ -21,15 +24,17 @@ static DISCOVERY_IDD_AMPLI_GAIN : u16 =  4967;   // value is gain * 100
 // static DISCOVERY_IDD_AMPLI_GAIN : u16 =  4990;     /*!< value is gain * 100 */
 
 pub struct Board {
+    pa0: PA0<Input<Floating>>,
     pub vcomtx: Tx<USART2>,
     mfx: MFX<MfxI2c, PA4<Output<PushPull>>, Delay>,
 }
 
-
-pub trait IddMeasure<E> {
-    fn init(&mut self) -> Result<(), E>;
-    fn read_idd() -> Result<u32, E>;
+pub struct PortA {
+    otyper: gpioa::OTYPER,
+    moder: gpioa::MODER,
+    pa0: PA0<Input<Floating>>,
 }
+
 
 impl Board {
 
@@ -63,6 +68,7 @@ impl Board {
         let mfx = MFX::new(i2c, wakup, timer, 0x84).unwrap();
 
         Board {
+            pa0: gpioa.pa0,
             vcomtx,
             mfx,
         }

@@ -24,6 +24,8 @@ use core::fmt::{self, Write};
 
 extern crate discovery32l476 as disco;
 
+use crate::disco::Board;
+
 struct Wrapper<'a> {
     buf: &'a mut [u8],
     offset: usize,
@@ -61,7 +63,7 @@ impl<'a> fmt::Write for Wrapper<'a> {
 #[entry]
 fn main() -> ! {
 
-    let mut board = disco::Board::freeze();
+    let mut board = Board::freeze();
 
     board.idd_init().unwrap();
     let idd = board.idd_measure().unwrap();
