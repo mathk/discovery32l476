@@ -3,10 +3,12 @@
 extern crate stm32l4xx_hal as hal;
 extern crate mfxstm32l152 as mfx;
 
+use core::marker::PhantomData;
 use hal::prelude::*;
 use hal::serial::{Serial, Tx};
 use hal::delay::Delay;
 use hal::i2c::{I2c, Error as I2cError};
+use hal::rcc::{Clocks, Rcc};
 
 use hal::gpio::{gpioa, gpioa::{PA0, PA4}, gpiob::{PB10, PB11}};
 use hal::gpio::{Input, Output, Floating, PushPull, OpenDrain};
@@ -23,7 +25,53 @@ static DISCOVERY_IDD_AMPLI_GAIN : u16 =  4967;   // value is gain * 100
 // On rev B and A
 // static DISCOVERY_IDD_AMPLI_GAIN : u16 =  4990;     /*!< value is gain * 100 */
 
-pub struct Board {
+
+
+
+pub struct RunMode;
+
+pub struct Board<Mode> {
+    _phantom: PhantomData<Mode>,
+    pub mfx: Option<MFX<MfxI2c, PA4<Output<PushPull>>, Delay>>,
+}
+
+impl<T> Board<T> {
+
+    pub fn constrain() -> Board<RunMode> {
+        Board {
+            _phantom: PhantomData,
+            mfx: None,
+        }
+    }
+}
+
+impl Board<RunMode> {
+
+    pub fn init_mfx(&mut self, mut mfx: MFX<MfxI2c, PA4<Output<PushPull>>, Delay>) -> Result<(), I2cError> {
+        mfx.set_idd_ctrl(false, false, NbShunt::SHUNT_NB_4).unwrap();
+        mfx.set_idd_gain(DISCOVERY_IDD_AMPLI_GAIN).unwrap();
+        mfx.set_idd_vdd_min(2000).unwrap(); // In milivolt
+        mfx.set_idd_pre_delay(DelayUnit::TIME_20_MS, 0xF).unwrap(); // Max delay
+
+        // The shunt resistor is in the user manual.
+        // Delay is pick from the stmcubel4 driver
+        mfx.set_idd_shunt0(1000, 149)?;
+        mfx.set_idd_shunt1(24, 149)?;
+        mfx.set_idd_shunt2(620, 149)?;
+        mfx.set_idd_shunt3(0, 0)?;
+        mfx.set_idd_shunt4(10000, 255)?;
+        mfx.set_idd_nb_measurment(10)?;
+        mfx.set_idd_meas_delta_delay(DelayUnit::TIME_5_MS, 10)?;
+
+        self.mfx = Some(mfx);
+        Ok(())
+    }
+}
+
+
+/*
+pub struct Board<Mode> {
+    phantom: PhantomData<Mode>,
     pa0: PA0<Input<Floating>>,
     pub vcomtx: Tx<USART2>,
     mfx: MFX<MfxI2c, PA4<Output<PushPull>>, Delay>,
@@ -36,9 +84,27 @@ pub struct PortA {
 }
 
 
-impl Board {
+pub struct RunMode;
+pub trait WithVcom {
+    fn init_vcom(&mut self,  ) -> Serial;
+};
 
-    pub fn freeze() -> Board {
+
+impl<T> Board<T>
+where
+    T: WithVcom
+{
+    pub fn initVcom(&mut self) {
+
+    }
+}
+
+impl<T> Board<T>
+where
+    T: RunMode + WithVcom
+{
+
+    pub fn freeze() -> Board<T> {
         let cp = cortex_m::Peripherals::take().unwrap();
         let p = hal::stm32::Peripherals::take().unwrap();
 
@@ -67,11 +133,13 @@ impl Board {
         let timer = Delay::new(cp.SYST, clocks);
         let mfx = MFX::new(i2c, wakup, timer, 0x84).unwrap();
 
-        Board {
+        let b = Board {
             pa0: gpioa.pa0,
             vcomtx,
             mfx,
-        }
+        };
+        b.initVcom();
+        b
 
     }
 
@@ -98,3 +166,4 @@ impl Board {
         self.mfx.idd_get_value()
     }
 }
+*/
