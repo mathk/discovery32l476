@@ -1,6 +1,6 @@
 //! Test the serial interface
 //!
-#![deny(unsafe_code)]
+//#![deny(unsafe_code)]
 // #![deny(warnings)]
 #![no_main]
 #![no_std]
@@ -33,6 +33,8 @@ use hal::gpio::{AF4, Alternate};
 
 use hal::stm32::USART2;
 use hal::stm32::I2C2;
+use hal::stm32::RCC;
+use mfx::MFX;
 
 extern crate discovery32l476 as disco;
 
@@ -83,12 +85,13 @@ fn main() -> ! {
     let mut gpioa = p.GPIOA.split(&mut rcc.ahb2);
     let mut gpiob = p.GPIOB.split(&mut rcc.ahb2);
     let mut gpiod = p.GPIOD.split(&mut rcc.ahb2);
-    let clocks = rcc.cfgr.freeze(&mut flash.acr);
+
+    let clocks = rcc.cfgr.hclk(4.mhz()).freeze(&mut flash.acr);
     // VCOM gpio
     let tx = gpiod.pd5.into_af7(&mut gpiod.moder, &mut gpiod.afrl);
     let rx = gpiod.pd6.into_af7(&mut gpiod.moder, &mut gpiod.afrl);
     let vcom = Serial::usart2(p.USART2, (tx, rx), 115_200.bps(), clocks, &mut rcc.apb1r1);
-    let (vcomtx, _rx) = vcom.split();
+    let (mut vcomtx, _rx) = vcom.split();
 
     let mut scl = gpiob.pb10.into_open_drain_output(&mut gpiob.moder, &mut gpiob.otyper);
     scl.internal_pull_up(&mut gpiob.pupdr, true);
@@ -102,14 +105,21 @@ fn main() -> ! {
     let i2c = I2c::i2c2(p.I2C2, (scl, sda), 100.khz(), clocks, &mut rcc.apb1r1);
     let timer = Delay::new(cp.SYST, clocks);
     let mfx = MFX::new(i2c, wakup, timer, 0x84).unwrap();
-    let board = Board<RunMode>::constrain();
+    let mut board = Board::constrain();
 
     board.init_mfx(mfx).unwrap();
-    let idd = board.mfx.map(|e| e.idd_measure()).expect("No mfx found");
+    let rcc = unsafe { &*RCC::ptr() };
+    rcc.apb1enr1.modify(|_, w| w.pwren().set_bit());
+    //p.PWR.cr1.modify(|_, w| w.lpr().set_bit());
+    rcc.apb1enr1.modify(|_, w| w.pwren().clear_bit());
+    let idd = board.mfx.map(|mut e| {
+        e.idd_start()?;
+        e.idd_get_value()
+    }).expect("No mfx found").unwrap();
 
 
     let mut buf = [0 as u8; 40];
-    write!(Wrapper::new(&mut buf), "\n\rIDD: {}\n\r\0", idd).unwrap();
+    write!(Wrapper::new(&mut buf), "\n\rIDD: {}, hclk: {}\n\r\0", idd, clocks.hclk().0).unwrap();
 
     vcomtx.write_str(core::str::from_utf8(&buf).unwrap()).ok();
 

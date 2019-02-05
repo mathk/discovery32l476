@@ -35,17 +35,14 @@ pub struct Board<Mode> {
     pub mfx: Option<MFX<MfxI2c, PA4<Output<PushPull>>, Delay>>,
 }
 
-impl<T> Board<T> {
+impl Board<RunMode> {
 
-    pub fn constrain() -> Board<RunMode> {
+    pub fn constrain() -> Self {
         Board {
             _phantom: PhantomData,
             mfx: None,
         }
     }
-}
-
-impl Board<RunMode> {
 
     pub fn init_mfx(&mut self, mut mfx: MFX<MfxI2c, PA4<Output<PushPull>>, Delay>) -> Result<(), I2cError> {
         mfx.set_idd_ctrl(false, false, NbShunt::SHUNT_NB_4).unwrap();
