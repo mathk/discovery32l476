@@ -39,7 +39,10 @@ use mfx::MFX;
 extern crate discovery32l476 as disco;
 
 use crate::disco::{Board, RunMode};
-
+#[exception]
+fn SysTick() {
+    cortex_m::asm::nop();
+}
 struct Wrapper<'a> {
     buf: &'a mut [u8],
     offset: usize,
@@ -110,14 +113,17 @@ fn main() -> ! {
     board.init_mfx(mfx).unwrap();
     let rcc = unsafe { &*RCC::ptr() };
     rcc.apb1enr1.modify(|_, w| w.pwren().set_bit());
-    //p.PWR.cr1.modify(|_, w| w.lpr().set_bit());
+    p.PWR.cr1.modify(|_, w| w.lpr().set_bit());
     rcc.apb1enr1.modify(|_, w| w.pwren().clear_bit());
+    //rcc.ahb2enr.modify(|_, w| w.gpioaen().clear_bit());
+    //rcc.ahb2enr.modify(|_, w| w.gpioden().clear_bit());
     let idd = board.mfx.map(|mut e| {
         e.idd_start()?;
         e.idd_get_value()
     }).expect("No mfx found").unwrap();
 
 
+    rcc.ahb2enr.modify(|_, w| w.gpioden().set_bit());
     let mut buf = [0 as u8; 40];
     write!(Wrapper::new(&mut buf), "\n\rIDD: {}, hclk: {}\n\r\0", idd, clocks.hclk().0).unwrap();
 
